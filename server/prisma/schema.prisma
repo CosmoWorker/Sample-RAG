@@ -6,4 +6,26 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User{
+  id            Int        @id @default(autoincrement())
+  username      String     @unique
+  password      String     
+  name          String?
+}   
+
+model Document {
+  id            String     @id @default(uuid())
+  subject       String
+  description   String
+  chunks        Chunks[]
+}
+
+model Chunks{
+  id           String                        @id @default(uuid())
+  embedding    Unsupported("vector(1024)")?
+  documentId   String
+  document     Document                      @relation(fields: [documentId], references: [id])
 }
