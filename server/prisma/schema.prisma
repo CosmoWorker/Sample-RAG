@@ -14,17 +14,21 @@ model User{
   username      String     @unique
   password      String     
   name          String?
+  documents     Document[]
 }   
 
 model Document {
   id            String     @id @default(uuid())
   subject       String
   description   String
-  chunks        Chunks[]
+  userId        Int
+  user          User       @relation(fields: [userId], references: [id])
+  chunks        Chunk[]
 }
 
-model Chunks{
+model Chunk{
   id           String                        @id @default(uuid())
+  content      String
   embedding    Unsupported("vector(1024)")?
   documentId   String
   document     Document                      @relation(fields: [documentId], references: [id])
