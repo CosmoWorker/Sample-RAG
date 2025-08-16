@@ -7,21 +7,23 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User{
-  id            Int        @id @default(autoincrement())
-  username      String     @unique
-  password      String     
-  name          String?
-  documents     Document[]
-}   
+  id                String     @id @default(uuid())
+  username          String     @unique
+  password          String     
+  name              String?
+  refreshTokenHash  String?
+  documents         Document[]
+}  
 
 model Document {
   id            String     @id @default(uuid())
   subject       String
   description   String
-  userId        Int
+  userId        String
   user          User       @relation(fields: [userId], references: [id])
   chunks        Chunk[]
 }
