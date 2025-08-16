@@ -3,7 +3,7 @@ import jwt, { type JwtPayload } from "jsonwebtoken"
 import { envConfig } from "./config";
 
 export interface ER extends Request{
-    user?: string | JwtPayload
+    userId?: string | JwtPayload
 }
 
 export const auth=(req: ER, res: Response, next: NextFunction)=>{
@@ -15,9 +15,9 @@ export const auth=(req: ER, res: Response, next: NextFunction)=>{
         return;
     }
     try{ 
-        jwt.verify(token, envConfig.SECRET_KEY, (err, user)=>{
+        jwt.verify(token, envConfig.SECRET_KEY, (err, userId)=>{
             if (err) return res.json({msg: err})
-            req.user=user
+            req.userId=userId
             next()
         })
 
