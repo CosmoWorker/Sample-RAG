@@ -1,36 +1,167 @@
 import express from "express";
 import { auth } from "./middleware";
 import { PrismaClient } from "./generated/prisma";
+import cors from "cors"
+import jwt from "jsonwebtoken"
+import { envConfig } from "./config";
+import { generateAccessToken, generateRefreshToken } from "./jwt-utils";
+import ms, { type StringValue } from "ms";
+import cookieParser from "cookie-parser";
+
+interface JwtPayload{
+    userId: string
+}
 
 const prisma=new PrismaClient()
 const app=express();
 app.use(express.json());
+app.use(cors())
+app.use(cookieParser()) 
 
 app.post("/signup", async(req, res)=>{
-    const username=req.body.username;
-    const password=req.body.password;
-    const name=req.body.name;
+    const info=req.body;
+    const passwordHash=await Bun.password.hash(info.password)
 
-    
+    const result=await prisma.user.create({
+        data:{
+            username: info.username,
+            password: passwordHash,
+            name: info.name
+        }
+    })    
+    res.json({
+        userId: result.id
+    })
 })
 
-app.post("/signin", async(req, res)=>{
-    const username=req.body.username
-    const password=req.body.password;
+app.post("/login", async(req, res)=>{
+    const info=req.body;
+    const user=await prisma.user.findFirst({where: {username: info.username}})
+    if (!user){
+        return res.json({ message: "User Not found" })
+    }   
+    const isMatch=await Bun.password.verify(info.password, user.password)
+    if (isMatch){
+        const accessToken=generateAccessToken(user.id)
+        const refreshToken=generateRefreshToken(user.id)
+        const refreshToken_hash=await Bun.password.hash(refreshToken)
 
+        await prisma.user.update({
+            where:{id: user.id},
+            data: {refreshTokenHash: refreshToken_hash}
+        })
+
+        console.log(envConfig.REFRESH_TOKEN_EXPIRY)
+        console.log(typeof(envConfig.REFRESH_TOKEN_EXPIRY))
+        console.log(ms(envConfig.REFRESH_TOKEN_EXPIRY as StringValue))
+
+        res
+        .cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            path: "/",
+            maxAge: ms(envConfig.REFRESH_TOKEN_EXPIRY as StringValue)
+        })
+        .header("Authorization", accessToken)
+        .json({message: "Login Successfull"})
+
+    }else{
+        res.json({
+            message: "Incorrect password"
+        })
+    }
+})
+
+app.delete("/logout", async(req, res)=>{
+    const token=req.cookies.refreshToken;
+    if (!token)  return res.json("No token found -- logout")
+    
+    try{
+        const payload=jwt.verify(token, envConfig.SECRET_KEY) as JwtPayload;
+        const user=await prisma.user.findFirst({where: {id: payload.userId }})
+        if(!user){
+            return res.json({msg: "User not found during Refresh Token"})
+        } 
+        await prisma.user.update({
+            where: {id: user.id},
+            data:{refreshTokenHash: null}
+        })
+
+        res.clearCookie("refreshToken", {
+            httpOnly: true,
+            path: "/"
+        })
+
+        res.json({
+            message:"Logged Out"
+        })
+    }catch(e){
+        console.log(`Error Logging out - ${e}`)
+        res.json({
+            message: "Error Logging out"
+        })
+    }
+})
+
+app.post("/refresh-token", async(req, res)=>{
+    const token=req.cookies.refreshToken;
+    if (!token)  return res.json("No token found -- refresh token")
+
+    try{
+        const payload=jwt.verify(token, envConfig.SECRET_KEY) as JwtPayload;
+        const user=await prisma.user.findFirst({where: {id: payload.userId }})
+        if(!user) return res.json({msg: "User not found during Refresh Token"})
+
+        const isMatch=await Bun.password.verify(token, user.refreshTokenHash!)
+        if (isMatch){
+            const newAccessToken=generateAccessToken(user.id)  
+            const newRefreshToken=generateRefreshToken(user.id)
+            const newRefreshTokenHash=await Bun.password.hash(newRefreshToken)
+            await prisma.user.update({where:{id: user.id}, data: {refreshTokenHash: newRefreshTokenHash}})
+            res
+            .cookie("refresToken", newRefreshToken, {
+                httpOnly: true,
+                path: "/",
+                maxAge: Number(ms(Number(envConfig.REFRESH_TOKEN_EXPIRY)))
+            })
+            .header("Authorization", newAccessToken)
+        }
+
+    }catch(e){
+        console.log(`Error refresh token -  ${e}`)
+        res.status(401).json({
+            message: "Refresh Token Invalid - Error"
+        })
+    }
 })
 
 app.post("/upload", auth, async(req, res)=>{
-    
+
 })
 
-app.get("/docs", auth, async(req, res)=>{
-
+app.get("/docs/:user_id", auth, async(req, res)=>{
+    const user_id=req.params.user_id;
+    if (!user_id) {
+        return res.json({ message: "No userId given for docs"})
+    }
+    const docs=await prisma.document.findMany({where: {userId: user_id}})
+    if (docs){
+        res.json({
+            documents: docs
+        })
+    }else{
+        res.json({
+            documents: "No Docs Uploaded yet"
+        })
+    }
 })
 
 app.post("/chat", auth, async(req, res)=>{
+    res.json({
 
+    })
 })
 
 
-app.listen(process.env.PORT)
+app.listen(envConfig.PORT, ()=>{
+    console.log(`Server is running on port ${envConfig.PORT}`)
+})
