@@ -1,5 +1,5 @@
 import express from "express";
-import { auth } from "./middleware";
+import { auth, type ER } from "./middleware";
 import { PrismaClient } from "./generated/prisma";
 import cors from "cors"
 import jwt from "jsonwebtoken"
@@ -7,6 +7,7 @@ import { envConfig } from "./config";
 import { generateAccessToken, generateRefreshToken } from "./jwt-utils";
 import ms, { type StringValue } from "ms";
 import cookieParser from "cookie-parser";
+import {v2 as cloudinary } from "cloudinary"
 
 interface JwtPayload{
     userId: string
@@ -134,8 +135,48 @@ app.post("/refresh-token", async(req, res)=>{
     }
 })
 
-app.post("/upload", auth, async(req, res)=>{
+app.get("/cloud-sign", auth, async(req, res)=>{
+    const timestamp=Math.round((new Date).getTime()/1000);
+    const paramsToSign={timestamp: timestamp}
+    try{
+        const sign=cloudinary.utils.api_sign_request(paramsToSign, envConfig.CLOUDINARY_API_SECRET)
+        res.json({
+            timestamp: timestamp,
+            signature: sign,
+            apiKey: envConfig.CLOUDINARY_API_KEY
+        })
+    }catch(e){
+        console.log(`cloudinary signature error - ${e}`)
+        res.json({
+            msg: "Error creating signature"
+        })
+    }
+})
 
+app.post("/upload", auth, async(req: ER, res)=>{
+    const info=req.body;
+    if (!info){
+        return res.json("upload info is empty")
+    }
+
+    try{
+        const document=await prisma.document.create({
+            data:{
+                userId: String(req.userId),
+                subject: info.subject,
+                description: info.description
+            }
+        })
+
+        res.json({
+            msg: `${document} Uploaded`
+        })
+    }catch(e){
+        console.log("Error uploading", e)
+        res.json({
+            msg: "Error uploading metadata"
+        })
+    }
 })
 
 app.get("/docs/:user_id", auth, async(req, res)=>{
