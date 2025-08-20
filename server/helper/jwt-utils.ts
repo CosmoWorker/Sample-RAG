@@ -1,5 +1,5 @@
 import jwt, { type SignOptions } from "jsonwebtoken";
-import { envConfig } from "./config";
+import { envConfig } from "../config";
 
 export const generateRefreshToken=(userId : string)=>{
     const payload={
