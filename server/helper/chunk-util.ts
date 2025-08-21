@@ -9,22 +9,29 @@ export const createChunks = (text: string, chunkSize = 990): string[] => {
         let addedChars = likelySentenceEnd(text, i + chunkSize)
         const endIdx = addedChars?.likelyEndIdx ?? i + chunkSize;
         textEle += text.slice(i + chunkSize, endIdx)
-        chunks.push(textEle)
+        chunks.push(textEle.trim())
     }
 
     return chunks;
 }
 
 const likelySentenceEnd = (text: string, index: number) => {
+    const nonBreakingAbbreviations = ["e.g", "i.e", "etc", "vs", "VS", "No", "no", "dr", "Dr", "Mr", "Mrs", "Ms"]
     while (index < text.length) {
-        let wordSnippetIdx = getRandomInt(5, 8) // chosen 5 and 8 as most average character length wrt this industry being 6-7
+        let wordSnippetIdx = getRandomInt(6, 7) // chosen 5 and 8 as most average character length wrt this industry being 6-7
         let wordSnippet = text.slice(index, index + wordSnippetIdx)
-        const multiPeriods = wordSnippet.match(/([A-Z]\.){2,}/)
-        const hasDotComma = wordSnippet.match(/^\.,$/)
-        const nextIsLowercase = wordSnippet.match(/^[ ][a-z]$/)
-        const periodWithSpace = wordSnippet.match(/^\.\s[A-Z]$/)
+        const multiPeriods = /([A-Z]\.){2,}/.test(wordSnippet)
+        const hasDotComma = /\.,/.test(wordSnippet)
+        const nextIsLowercase = /[ ][a-z]/.test(wordSnippet)
+        const periodWithSpace = /[\.?!]\s+[A-Z]/.test(wordSnippet)
 
-        if ((!multiPeriods && !nextIsLowercase && !hasDotComma) || periodWithSpace) {
+        // check word before the dot
+        const lookBehind = text.slice(index - 6, index + 1); // a small snippet
+        const abbrevMatch = nonBreakingAbbreviations.some(abbrev =>
+            lookBehind.includes(abbrev + ".")
+        );
+
+        if ((!multiPeriods && !nextIsLowercase && !hasDotComma && !abbrevMatch) || periodWithSpace) {
             return {
                 likelyEndIdx: index + wordSnippetIdx + 1
             }
