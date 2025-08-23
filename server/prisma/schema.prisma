@@ -22,16 +22,20 @@ model User{
 model Document {
   id            String     @id @default(uuid())
   subject       String
-  description   String
+  metadata      String?  //encoded json
   userId        String
   user          User       @relation(fields: [userId], references: [id])
   chunks        Chunk[]
+
+  @@index([userId])
 }
 
 model Chunk{
   id           String                        @id @default(uuid())
   content      String
-  embedding    Unsupported("vector(1024)")?
+  embedding    Unsupported("vector(1536)")?
   documentId   String
   document     Document                      @relation(fields: [documentId], references: [id])
+
+  @@index([documentId])
 }

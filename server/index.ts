@@ -4,7 +4,7 @@ import { PrismaClient } from "./generated/prisma";
 import cors from "cors"
 import jwt from "jsonwebtoken"
 import { envConfig } from "./config";
-import { generateAccessToken, generateRefreshToken } from "./jwt-utils";
+import { generateAccessToken, generateRefreshToken } from "./helper/jwt-utils";
 import ms, { type StringValue } from "ms";
 import cookieParser from "cookie-parser";
 import {v2 as cloudinary } from "cloudinary"
@@ -119,7 +119,7 @@ app.post("/refresh-token", async(req, res)=>{
             const newRefreshTokenHash=await Bun.password.hash(newRefreshToken)
             await prisma.user.update({where:{id: user.id}, data: {refreshTokenHash: newRefreshTokenHash}})
             res
-            .cookie("refresToken", newRefreshToken, {
+            .cookie("refreshToken", newRefreshToken, {
                 httpOnly: true,
                 path: "/",
                 maxAge: Number(ms(Number(envConfig.REFRESH_TOKEN_EXPIRY)))
@@ -164,7 +164,6 @@ app.post("/upload", auth, async(req: ER, res)=>{
             data:{
                 userId: String(req.userId),
                 subject: info.subject,
-                description: info.description
             }
         })
 
