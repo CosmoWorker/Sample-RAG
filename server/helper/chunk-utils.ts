@@ -1,9 +1,8 @@
-export const createChunks = (text: string, chunkSize = 990): string[] => {
-
-    //chunking if the minimum chunk limit is 1000 and if the sentence is complete indicating using a period (.)
+export const createChunks = async (text: string): Promise<string[]> => {
+    //chunking if the minimum chunk limit is 4000 and if the sentence is complete indicating using a period (.)
 
     let chunks: string[] = []
-
+    let chunkSize = 3990
     for (let i = 0; i < text.length; i += chunkSize) {
         let textEle = text.slice(i, i + chunkSize)
         let addedChars = likelySentenceEnd(text, i + chunkSize)
@@ -18,7 +17,7 @@ export const createChunks = (text: string, chunkSize = 990): string[] => {
 const likelySentenceEnd = (text: string, index: number) => {
     const nonBreakingAbbreviations = ["e.g", "i.e", "etc", "vs", "VS", "No", "no", "dr", "Dr", "Mr", "Mrs", "Ms"]
     while (index < text.length) {
-        let wordSnippetIdx = getRandomInt(6, 7) // chosen 5 and 8 as most average character length wrt this industry being 6-7
+        let wordSnippetIdx = getRandomInt(6, 7) // most average character length wrt this industry being 6-7
         let wordSnippet = text.slice(index, index + wordSnippetIdx)
         const multiPeriods = /([A-Z]\.){2,}/.test(wordSnippet)
         const hasDotComma = /\.,/.test(wordSnippet)
