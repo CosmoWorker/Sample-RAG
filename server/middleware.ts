@@ -2,26 +2,26 @@ import type { NextFunction, Request, Response } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken"
 import { envConfig } from "./config";
 
-export interface ER extends Request{
+export interface ER extends Request {
     userId?: string | JwtPayload
 }
 
-export const auth=(req: ER, res: Response, next: NextFunction)=>{
-    const token=req.headers.authorization;
-    if (!token){
+export const auth = (req: ER, res: Response, next: NextFunction) => {
+    const token = req.headers.authorization;
+    if (!token) {
         res.status(401).json({
             message: "Unauthorized"
         })
         return;
     }
-    try{ 
-        jwt.verify(token, envConfig.SECRET_KEY, (err, userId)=>{
-            if (err) return res.json({msg: err})
-            req.userId=userId
+    try {
+        jwt.verify(token, envConfig.SECRET_KEY, (err, userId) => {
+            if (err) return res.json({ msg: err })
+            req.userId = userId
             next()
         })
 
-    }catch(e){
+    } catch (e) {
         res.json({
             message: `Middleware Error - ${e}`
         })
