@@ -9,8 +9,11 @@ import ms, { type StringValue } from "ms";
 import cookieParser from "cookie-parser";
 import { v2 as cloudinary } from "cloudinary"
 import { getImageDesc } from "./helper/image-util";
-import { createChunks } from "./helper/chunk-utils";
+import { fileAsBufferForPdfParse } from "./helper/parse-util";
+import { createEmbeds } from "./helper/create-embed";
 import { embedChunks } from "./helper/embedding-util";
+import { createChunks } from "./helper/chunk-utils";
+import Groq from "groq-sdk";
 
 interface JwtPayload {
     userId: string
@@ -18,6 +21,7 @@ interface JwtPayload {
 
 const prisma = new PrismaClient()
 const app = express();
+const groq = new Groq({ apiKey: envConfig.GROQ_API_KEY })
 app.use(express.json());
 app.use(cors())
 app.use(cookieParser())
@@ -171,17 +175,22 @@ app.post("/upload", auth, async (req: ER, res) => {
             }
         })
 
-        let embeddedVectorArray;
         if (info.metadata.format === "png" || info.metadata.format === "jpg" || info.meta.format === "jpeg") {
             const text = await getImageDesc(info.metadata.resource_type)
-            const chunks = await createChunks(text!)
-            embeddedVectorArray = await embedChunks(chunks)
-
-            if (!embeddedVectorArray) return res.json({ msg: "Embedded vector array not found" })
-
-            for (let i = 0; i < chunks.length; i++) {
-                await prisma.$executeRaw`INSERT INTO "Chunk" (content, embedding, documentId) VALUES (${chunks[i]}, ${embeddedVectorArray[i]}, ${document.id})`
-            }
+            const response = await createEmbeds(text!, document.id)
+            if (response.msg == "Created") res.json({ msg: "Embedded Created -- image" })
+            else res.json({ msg: response.msg })
+        }
+        else if (info.metadata.format === "pdf") {
+            const text = await fileAsBufferForPdfParse(info.metadata.resource_type)
+            const response = await createEmbeds(text!, document.id)
+            if (response.msg == "Created") res.json({ msg: "Embedded Created -- pdf" })
+            else res.json({ msg: response.msg })
+        } else {
+            const text = info.text;
+            const response = await createEmbeds(text, document.id)
+            if (response.msg == "Created") res.json({ msg: "Embedded Created" })
+            else res.json({ msg: response.msg })
         }
 
         res.json({
@@ -213,8 +222,34 @@ app.get("/docs/:user_id", auth, async (req, res) => {
 })
 
 app.post("/chat", auth, async (req, res) => {
-    res.json({
+    const query = req.body.query;
+    const chunks = createChunks(query)
+    const embeds = embedChunks(chunks)
 
+    const relevantChunks = await prisma.chunk.findMany({
+        //logic
+    })
+
+    const context = relevantChunks.map(c => c.content).join("\n\n")
+    const prompt = `Context:\n${context}\n\nUser query: ${query}`
+
+    const response = await groq.chat.completions.create({
+        "messages": [
+            {
+                "role": "system",
+                "content": ""
+            },
+            {
+                "role": "user",
+                "content": prompt
+            },
+        ],
+        "model": "openai/gpt-oss-120b"  // check
+    })
+
+    res.json({
+        msg: response.choices[0]?.message,
+        context_used: relevantChunks.map(c=>c.content) 
     })
 })
 

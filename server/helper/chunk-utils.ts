@@ -1,4 +1,4 @@
-export const createChunks = async (text: string): Promise<string[]> => {
+export const createChunks = (text: string): string[] => {
     //chunking if the minimum chunk limit is 4000 and if the sentence is complete indicating using a period (.)
 
     let chunks: string[] = []
