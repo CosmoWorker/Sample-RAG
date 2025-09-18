@@ -223,34 +223,51 @@ app.get("/docs/:user_id", auth, async (req, res) => {
 
 app.post("/chat", auth, async (req, res) => {
     const query = req.body.query;
-    const chunks = createChunks(query)
-    const embeds = embedChunks(chunks)
+    try{
+        if (!query) return res.json({msg: "No chat Query provided"})
+        const [queryEmbedding] = await embedChunks([query])
+        if (!Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
+            return res.status(500).json({ msg: "Failed to create query embedding" });
+        }
 
-    const relevantChunks = await prisma.chunk.findMany({
-        //logic
-    })
-
-    const context = relevantChunks.map(c => c.content).join("\n\n")
-    const prompt = `Context:\n${context}\n\nUser query: ${query}`
-
-    const response = await groq.chat.completions.create({
-        "messages": [
-            {
-                "role": "system",
-                "content": ""
-            },
-            {
-                "role": "user",
-                "content": prompt
-            },
-        ],
-        "model": "openai/gpt-oss-120b"  // check
-    })
-
-    res.json({
-        msg: response.choices[0]?.message,
-        context_used: relevantChunks.map(c=>c.content) 
-    })
+        const vectorLiteral=`[${queryEmbedding.join(",")}]`;
+        const topK=7
+        const relevantChunks = await prisma.chunk.findMany({
+            //logic
+        })
+    
+        const context = relevantChunks.map(c => c.content).join("\n\n")
+        const systemPrompt=`Your are Computer Science Expert. You answer user's questions and queries 
+        within the vast field of Computer Science. Answer queries only from the context given. 
+        If the question is unrelated to Computer science field, say so and do not frabicate from answering it with a
+        proper message to the user.
+        `
+        const prompt = `Context:\n${context}\n\nUser query: ${query}`
+    
+        const response = await groq.chat.completions.create({
+            "messages": [
+                {
+                    "role": "system",
+                    "content": systemPrompt
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                },
+            ],
+            "model": "openai/gpt-oss-120b"  // check
+        })
+    
+        res.json({
+            msg: response.choices[0]?.message.content,
+            context_used: relevantChunks.map(c=>c.content) 
+        }) 
+    }catch(e){
+        console.log("Chat Quering Failed with Error: ", e)
+        res.json({
+            msg: "Chat query Failed"
+        })
+    }
 })
 
 
