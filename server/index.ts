@@ -223,45 +223,40 @@ app.get("/docs/:user_id", auth, async (req, res) => {
 
 app.post("/chat", auth, async (req: ER, res) => {
     const query = req.body.query;
-    try{
-        if (!query) return res.json({msg: "No chat Query provided"})
+    try {
+        if (!query) return res.json({ msg: "No chat Query provided" })
         const embeddings = await embedChunks([query])
-        if (!Array.isArray(embeddings) || embeddings.length==0){
-            return res.json({msg: "Failed to get query embeddings"})
+        if (!Array.isArray(embeddings) || embeddings.length == 0) {
+            return res.json({ msg: "Failed to get query embeddings" })
         }
-        const [queryEmbedding]=embeddings
+        const [queryEmbedding] = embeddings
         if (!Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
             return res.status(500).json({ msg: "Failed to create query embedding" });
         }
 
-        const vectorLiteral=`[${queryEmbedding.join(",")}]`;
-        const topK=7
-        const relevantChunks = await prisma.$queryRawUnsafe<
-                                {id: String; content: String; similarity: Number}[]>(
-                                    `
-                                    select 
+        const vectorLiteral = `[${queryEmbedding.join(",")}]`;
+        const topK = 7
+        const relevantChunks = await prisma.$queryRaw<{ id: string; content: string; similarity: number }[]>
+                                `   
+                                    SELECT
                                         c.id, 
                                         c.content, 
-                                        1-(c.embedding<=>$1::vector) as similarity
-                                    from "Chunk" c
-                                    join "Document" d on d.id=c.documentId
-                                    where d.userId = $2
-                                    order by c.embedding <=> $1::vector
-                                    limit $3
-                                    `,
-                                    vectorLiteral,
-                                    req.userId,
-                                    topK
-                                )       
-    
+                                        1-(c.embedding<=>${vectorLiteral}::vector) AS cosine_similarity
+                                    FROM "Chunk" c
+                                    JOIN "Document" d ON d.id=c.documentId
+                                    WHERE d.userId = ${req.userId}
+                                    ORDER BY cosine_similarity DESC
+                                    LIMIT ${topK}
+                                `
+
         const context = relevantChunks.map(c => c.content).join("\n\n")
-        const systemPrompt=`Your are Computer Science Expert. You answer user's questions and queries 
+        const systemPrompt = `Your are Computer Science Expert. You answer user's questions and queries 
         within the vast field of Computer Science. Answer queries from the context given. 
         If the question is unrelated to Computer science field, say so and do not frabicate from answering it with a
         proper message to the user.
         `
         const prompt = `Context:\n${context}\n\nUser query: ${query}`
-    
+
         const response = await groq.chat.completions.create({
             "messages": [
                 {
@@ -275,19 +270,18 @@ app.post("/chat", auth, async (req: ER, res) => {
             ],
             "model": "openai/gpt-oss-120b"
         })
-    
+
         res.json({
             msg: response.choices[0]?.message.content,
-            context_used: relevantChunks.map(c=>c.content) 
-        }) 
-    }catch(e){
+            context_used: context
+        })
+    } catch (e) {
         console.log("Chat Quering Failed with Error: ", e)
         res.json({
             msg: "Chat query Failed"
         })
     }
 })
-
 
 app.listen(envConfig.PORT, () => {
     console.log(`Server is running on port ${envConfig.PORT}`)
