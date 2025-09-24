@@ -236,7 +236,7 @@ app.post("/chat", auth, async (req: ER, res) => {
 
         const vectorLiteral = `[${queryEmbedding.join(",")}]`;
         const topK = 7
-        const relevantChunks = await prisma.$queryRaw<{ id: string; content: string; similarity: number }[]>
+        const relevantChunks = await prisma.$queryRaw<{ id: string; content: string; cosine_similarity: number }[]>
                                 `   
                                     SELECT
                                         c.id, 
