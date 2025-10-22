@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { TodoItem } from './TodoItem'
-import { SignUpForm } from './components/SignUpForm'
+import { AuthForm } from './components/AuthForm'
 
 export type todoObject={
   "id": number,
@@ -8,6 +7,7 @@ export type todoObject={
   "done": boolean
 }
 function App() {
+  const [formType, setFormType]=useState<"signup"|"login">("signup")
   const [task, setTask]=useState("")
   const [todoArray, setTodoArray]=useState<todoObject[]>([])
   const inputRef=useRef<HTMLInputElement | null>(null)
@@ -54,7 +54,7 @@ function App() {
         </div>
         <TodoItem todos={todoArray} onClick={handleDelete} onDone={handleDone}/>
       </div>   */}
-      <SignUpForm/>
+      <AuthForm form={formType} onFormChange={()=>setFormType((prev)=>(prev==="signup"?"login":"signup"))}/>
     </>
   )
 }

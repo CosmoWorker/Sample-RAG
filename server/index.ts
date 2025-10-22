@@ -12,7 +12,6 @@ import { getImageDesc } from "./helper/image-util";
 import { fileAsBufferForPdfParse } from "./helper/parse-util";
 import { createEmbeds } from "./helper/create-embed";
 import { embedChunks } from "./helper/embedding-util";
-import { createChunks } from "./helper/chunk-utils";
 import Groq from "groq-sdk";
 
 interface JwtPayload {
@@ -30,6 +29,16 @@ app.post("/signup", async (req, res) => {
     const info = req.body;
     const passwordHash = await Bun.password.hash(info.password)
 
+    const exists=await prisma.user.findFirst({
+        where:{username: info.username}
+    })
+
+    if (exists){
+        res.json({
+            message: "User already exists"
+        })
+    }
+
     const result = await prisma.user.create({
         data: {
             username: info.username,
@@ -46,7 +55,7 @@ app.post("/login", async (req, res) => {
     const info = req.body;
     const user = await prisma.user.findFirst({ where: { username: info.username } })
     if (!user) {
-        return res.json({ message: "User Not found" })
+        return res.status(401).json({ message: "User Not found" })
     }
     const isMatch = await Bun.password.verify(info.password, user.password)
     if (isMatch) {
@@ -73,7 +82,7 @@ app.post("/login", async (req, res) => {
             .json({ message: "Login Successfull" })
 
     } else {
-        res.json({
+        res.status(401).json({
             message: "Incorrect password"
         })
     }
