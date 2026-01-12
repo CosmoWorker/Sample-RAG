@@ -39,51 +39,51 @@ export const AuthForm = ({ form, onFormChange }: Props) => {
         setErr(prev => ({ ...prev, [field]: error }));
     };
 
-    const handleSubmit=async(e: React.FormEvent<HTMLFormElement>)=>{
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
-        if (form==="signup" && !err){
-            const formData=new FormData(e.currentTarget)
-            const formValues=Object.fromEntries(formData)
-            const response=await axios.post("/api/signup", {
+        if (form === "signup" && !err) {
+            const formData = new FormData(e.currentTarget)
+            const formValues = Object.fromEntries(formData)
+            const response = await axios.post("/api/auth/signup", {
                 "username": formValues.email,
                 "name": formValues.name,
                 "password": formValues.password
-            }) 
+            })
 
             // change alert to a custom toast component
-            if (response.data.message === "User already exists"){
+            if (response.data.message === "User already exists") {
                 alert("Please login, an account exists with that email")
-            }else{
-                if(response.data.userId){
+            } else {
+                if (response.data.userId) {
                     alert("Account Created Successfully")
                 }
             }
             onFormChange()
         }
-        else if(form==="login"){
-            try{
-                const formData=new FormData(e.currentTarget)
-                const formValues=Object.fromEntries(formData)
+        else if (form === "login") {
+            try {
+                const formData = new FormData(e.currentTarget)
+                const formValues = Object.fromEntries(formData)
                 await axios.post("/api/login", {
                     "username": formValues.email,
                     "password": formValues.password
                 })
                 //utilise toast
-            }catch(e){
-                if (axios.isAxiosError(e)){
-                    if (e.response?.status === 401){
+            } catch (e) {
+                if (axios.isAxiosError(e)) {
+                    if (e.response?.status === 401) {
                         alert("Email or password is Invalid")
-                    }else{
+                    } else {
                         alert("Something went wrong.")
                     }
-                }else{
+                } else {
                     console.log("Unexpected Error: ", e)
                 }
             }
         }
     }
 
-    useEffect(() => { 
+    useEffect(() => {
         setInfo({ "email": "", "name": "", "password": "" })
         setErr({ "email": "", "name": "", "password": "" })
     }, [form])
