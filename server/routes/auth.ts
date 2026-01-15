@@ -17,7 +17,7 @@ authRouter.post("/signup", async (req, res) => {
     })
 
     if (exists) {
-        res.json({
+        return res.status(409).json({
             message: "User already exists"
         })
     }
@@ -38,7 +38,7 @@ authRouter.post("/login", async (req, res) => {
     const info = req.body;
     const user = await prisma.user.findFirst({ where: { username: info.username } })
     if (!user) {
-        return res.status(401).json({ message: "User Not found" })
+        return res.status(404).json({ message: "User Not found" })
     }
     const isMatch = await Bun.password.verify(info.password, user.password)
     if (isMatch) {
