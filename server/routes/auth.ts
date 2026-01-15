@@ -73,7 +73,7 @@ authRouter.post("/login", async (req, res) => {
 
 authRouter.delete("/logout", async (req, res) => {
     const token = req.cookies.refreshToken;
-    if (!token) return res.json("No token found -- logout")
+    if (!token) return res.status(401).json("No token found -- logout")
 
     try {
         const payload = jwt.verify(token, envConfig.SECRET_KEY) as JwtPayload;
@@ -109,7 +109,7 @@ authRouter.post("/refresh-token", async (req, res) => {
     try {
         const payload = jwt.verify(token, envConfig.SECRET_KEY) as JwtPayload;
         const user = await prisma.user.findFirst({ where: { id: payload.userId } })
-        if (!user) return res.json({ msg: "User not found during Refresh Token" })
+        if (!user) return res.status(401).json({ msg: "User not found during Refresh Token" })
 
         const isMatch = await Bun.password.verify(token, user.refreshTokenHash!)
         if (isMatch) {
