@@ -13,9 +13,12 @@ export interface JwtPayload {
 }
 export const prisma = new PrismaClient() //exporting to other routes
 const app = express();
+const corsOptions = {
+    origin: 'http://localhost:5173'
+}
 
 app.use(express.json());
-app.use(cors())
+app.use(cors(corsOptions))
 app.use(cookieParser())
 
 app.use("/api/auth", authRouter)

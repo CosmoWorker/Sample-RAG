@@ -1,58 +1,58 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { AuthForm } from "../components/AuthForm"
 import axios from "axios"
+import { useToast } from "../providers/ToastProvider"
+import { useAuth } from "../providers/AuthProvider"
+import { useNavigate } from "react-router-dom"
 
 export const Auth = () => {
     const [formType, setFormType] = useState<"signup" | "login">("signup")
-    const [isLoading, setIsLoading] = useState(false)
+    const toast = useToast()
+    const auth = useAuth()
+    const navigate = useNavigate()
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
-        setIsLoading(true)
 
         try {
             const formData = new FormData(e.currentTarget)
-            const formValues = Object.fromEntries(formData)
+            const email = formData.get("email") as string
+            const name = formData.get("name") as string
+            const password = formData.get("password") as string;
+
             if (formType === "signup") {
-                await axios.post("/api/auth/signup", {
-                    username: formValues.email,
-                    name: formValues.name,
-                    password: formValues.password
-                })
-                alert("Account Created Successfully.")
+                await auth.signup({ email: email, name: name, password: password })
                 setFormType("login")
+                toast.showToast({ message: "Account Creation Successfull", color: "green" })
             }
-
             if (formType === "login") {
-                await axios.post("/api/auth/login", {
-                    username: formValues.email,
-                    password: formValues.password
-                })
-                alert("Logged in successfully")
+                await auth.login({ email: email, password: password })
+                toast.showToast({ message: "Logged in successfully", color: "green" })
             }
-
         } catch (e) {
             if (axios.isAxiosError(e)) {
                 if (e.response?.status === 409) {
-                    alert("User already exists")
+                    toast.showToast({ message: "User already exists", color: "yellow" })
                 } else if (e.response?.status === 401) {
-                    alert("Invalid email or password")
+                    toast.showToast({ message: "Invalid email or password", color: "red" })
                 } else if (e.response?.status === 404) {
-                    alert("User Not Found")
+                    toast.showToast({ message: "User Not Found", color: "yellow" })
                 } else {
-                    alert("Request failed.")
+                    toast.showToast({ message: "Request Failed", color: "red" })
                 }
             } else {
                 console.log("Unexpected error:", e)
             }
-        } finally {
-            setIsLoading(false)
         }
     }
 
+    useEffect(() => {
+        if (auth.isAuthenticated) navigate("/")
+    }, [auth.isAuthenticated])
+
     return (
         <>
-            <AuthForm form={formType} onFormChange={() => setFormType((prev) => (prev === "signup" ? "login" : "signup"))} onSubmit={handleSubmit} isLoading={isLoading} />
+            <AuthForm form={formType} onFormChange={() => setFormType((prev) => (prev === "signup" ? "login" : "signup"))} onSubmit={handleSubmit} isLoading={auth.isLoading} />
         </>
     )
 }

@@ -30,7 +30,7 @@ authRouter.post("/signup", async (req, res) => {
         }
     })
     res.json({
-        userId: result.id
+        message: "Account Creation Successfull"
     })
 })
 
@@ -62,7 +62,7 @@ authRouter.post("/login", async (req, res) => {
                 maxAge: ms(envConfig.REFRESH_TOKEN_EXPIRY as StringValue)
             })
             .header("Authorization", accessToken)
-            .json({ message: "Login Successfull" })
+            .json({ userId: user.id })
 
     } else {
         res.status(401).json({
@@ -124,6 +124,9 @@ authRouter.post("/refresh-token", async (req, res) => {
                     maxAge: Number(ms(Number(envConfig.REFRESH_TOKEN_EXPIRY)))
                 })
                 .header("Authorization", newAccessToken)
+                .json({
+                    userId: user.id
+                })
         }
 
     } catch (e) {
